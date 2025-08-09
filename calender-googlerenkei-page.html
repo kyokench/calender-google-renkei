@@ -1,59 +1,85 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta charset="UTF-8">
-<title>スケジュール管理（Google連携・日付/カレンダー・Import/Export）</title>
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta charset="UTF-8" />
+<title>スケジュール管理（登録ビュー先行 / カレンダー全画面）</title>
+<meta name="viewport" content="width=device-width,initial-scale=1" />
 <style>
   :root { --bg:#f7f7fa; --card:#fff; --line:#e5e7eb; --text:#111827; --muted:#6b7280; --accent:#111827; }
-  * { box-sizing: border-box; }
-  body { margin:0; background:var(--bg); font-family:system-ui,-apple-system,Segoe UI,Roboto,"Noto Sans JP",sans-serif; color:var(--text); }
-  header { display:flex; gap:12px; justify-content:space-between; align-items:center; padding:14px 16px; background:#fff; border-bottom:1px solid var(--line); }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font-family:system-ui,-apple-system,Segoe UI,Roboto,"Noto Sans JP",sans-serif; }
+  header { position:sticky; top:0; z-index:20; background:#fff; border-bottom:1px solid var(--line); padding:10px 14px; display:flex; align-items:center; justify-content:space-between; gap:10px; }
   header h1 { margin:0; font-size:18px; }
-  .auth { display:flex; gap:8px; align-items:center; }
-  button { border:1px solid var(--line); background:#fff; padding:8px 10px; border-radius:8px; cursor:pointer; font:inherit; }
+  .auth { display:flex; align-items:center; gap:8px; }
+  button { border:1px solid var(--line); background:#fff; padding:8px 10px; border-radius:10px; cursor:pointer; font:inherit; }
   button.primary { background:var(--accent); color:#fff; border-color:var(--accent); }
-  button:disabled{ opacity:.6; cursor:not-allowed; }
   .hidden { display:none !important; }
-  main { max-width:1000px; margin:18px auto 60px; padding:0 14px; display:grid; gap:16px; grid-template-columns:1.1fr 1fr; }
-  @media (max-width:920px){ main{ grid-template-columns:1fr; } }
-  .card { background:#fff; border:1px solid var(--line); border-radius:12px; box-shadow:0 6px 16px rgba(0,0,0,.04); }
-  .card .head { padding:12px 14px; border-bottom:1px solid var(--line); display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
-  .card .body { padding:14px; }
+  .tabbar { display:flex; gap:8px; }
+  .tabbar button.active { background:#0f172a; color:#fff; border-color:#0f172a; }
+
+  /* ===== Views ===== */
+  .view { padding:16px; max-width:1000px; margin:16px auto; }
+  .card { background:#fff; border:1px solid var(--line); border-radius:14px; box-shadow:0 8px 20px rgba(0,0,0,.04); }
+  .head { padding:12px 14px; border-bottom:1px solid var(--line); display:flex; flex-wrap:wrap; gap:10px; align-items:center; }
+  .body { padding:14px; }
   .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
   .grow { flex:1 1 auto; }
-  .pill { padding:.2rem .6rem; background:#eef2f7; border-radius:999px; font-size:12px; }
-  .muted{ color:var(--muted); }
+  .pill { font-size:12px; padding:.2rem .6rem; background:#eef2f7; border-radius:999px; }
+  .muted { color:var(--muted); }
+
+  /* 登録ビュー */
   .textarea { width:100%; min-height:280px; padding:12px; border:1px solid var(--line); border-radius:10px; resize:vertical; font:inherit; }
-  /* calendar */
-  .cal-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:6px; }
+
+  /* カレンダービュー（全画面） */
+  #calendarView { width:100%; max-width:none; margin:0; padding:0; }
+  .calendar-shell { height: calc(100vh - 60px); /* header高さ分を引く(目安) */ display:flex; flex-direction:column; }
+  .cal-toolbar { background:#fff; border-bottom:1px solid var(--line); padding:10px 14px; display:flex; align-items:center; justify-content:space-between; gap:10px; }
+  .cal-toolbar .row { gap:10px; }
+  .cal-main { flex:1 1 auto; padding:12px; }
+  .cal-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:8px; height:100%; }
   .cal-dow { text-align:center; font-size:12px; color:var(--muted); }
-  .day { background:#fff; border:1px solid var(--line); border-radius:10px; min-height:70px; padding:6px; display:flex; flex-direction:column; gap:4px; }
-  .day header { display:flex; justify-content:space-between; align-items:center; padding:0; border:none; }
-  .day.inactive{ opacity:.5; }
-  .day .num{ font-size:13px; }
-  .dot{ width:8px; height:8px; border-radius:50%; background:#111827; display:inline-block; }
-  .todayMark{ border-color:#111827; box-shadow:0 0 0 2px rgba(0,0,0,.04) inset; }
+  .cal-dows { display:grid; grid-template-columns:repeat(7,1fr); gap:8px; margin-bottom:8px; }
+  .day { background:#fff; border:1px solid var(--line); border-radius:12px; padding:6px; display:flex; flex-direction:column; gap:6px; min-height:100px; }
+  .day.inactive { opacity:.5; }
+  .day header { display:flex; justify-content:space-between; align-items:center; }
+  .num { font-size:14px; }
+  .dot { width:8px; height:8px; border-radius:50%; background:#111827; display:inline-block; }
+  .todayMark { border-color:#111827; box-shadow:0 0 0 2px rgba(0,0,0,.05) inset; }
+  .day .open { margin-top:auto; font-size:12px; }
+
+  /* モーダル（カレンダーから予定表示/編集） */
+  .modal-backdrop { position:fixed; inset:0; background:rgba(0,0,0,.36); display:flex; align-items:center; justify-content:center; padding:16px; z-index:50; }
+  .modal { width:min(840px, 100%); background:#fff; border-radius:14px; border:1px solid var(--line); box-shadow:0 10px 30px rgba(0,0,0,.18); }
+  .modal .head { border-bottom:1px solid var(--line); }
+  .modal .footer { display:flex; justify-content:flex-end; gap:8px; padding:12px 14px; border-top:1px solid var(--line); }
 </style>
 </head>
 <body>
-
 <header>
   <h1>スケジュール管理</h1>
+  <div class="tabbar">
+    <button id="tab-register" class="active">登録</button>
+    <button id="tab-calendar">カレンダー</button>
+  </div>
   <div class="auth">
-    <div id="user-info" class="muted">ログイン状態を確認中...</div>
-    <button id="signInBtn" class="primary hidden">Googleでログイン</button>
-    <button id="signOutBtn" class="hidden">ログアウト</button>
+    <span id="user-info" class="muted">ログイン状態を確認中...</span>
   </div>
 </header>
 
-<main id="app" class="hidden">
-  <!-- 左：日付編集 -->
-  <section class="card">
+<!-- ===== 登録ビュー（初期表示のみ見せる） ===== -->
+<section id="registerView" class="view">
+  <div class="card">
     <div class="head">
       <div class="row grow">
-        <span class="pill">日付で編集 / 閲覧</span>
+        <span class="pill">日付とテンプレを選んで登録</span>
         <input id="datePicker" type="date" />
+        <select id="preset">
+          <option value="tired">仕事終わり（疲れている）</option>
+          <option value="energetic">仕事終わり（元気）</option>
+          <option value="holiday">休日</option>
+          <option value="blank">（空から書く）</option>
+        </select>
+        <button id="insertPresetBtn">テンプレ挿入</button>
         <button id="todayBtn">今日</button>
       </div>
       <div class="row">
@@ -62,58 +88,47 @@
     </div>
     <div class="body">
       <textarea id="scheduleText" class="textarea" placeholder="この日の予定をテキストで自由に書いてください"></textarea>
-      <div class="row" style="justify-content:space-between; margin-top:10px">
+      <div class="row" style="justify-content:space-between; margin-top:10px;">
         <span id="updatedAt" class="muted">保存日時: —</span>
       </div>
     </div>
-  </section>
+  </div>
+</section>
 
-  <!-- 右：カレンダー -->
-  <aside class="card">
-    <div class="head">
-      <div class="row grow"><span class="pill">カレンダー（月）</span></div>
+<!-- ===== カレンダービュー（切替時は全画面） ===== -->
+<section id="calendarView" class="view hidden" style="max-width:none;">
+  <div class="calendar-shell">
+    <div class="cal-toolbar">
       <div class="row">
         <button id="prevMonthBtn">◀ 前月</button>
-        <strong id="monthLabel" style="min-width:9ch;text-align:center"></strong>
+        <strong id="monthLabel"></strong>
         <button id="nextMonthBtn">次月 ▶</button>
       </div>
+      <div class="row">
+        <button id="backToRegister">登録画面に戻る</button>
+      </div>
     </div>
-    <div class="body">
-      <div class="cal-grid" style="margin-bottom:6px">
+    <div class="cal-main">
+      <div class="cal-dows">
         <div class="cal-dow">日</div><div class="cal-dow">月</div><div class="cal-dow">火</div>
         <div class="cal-dow">水</div><div class="cal-dow">木</div><div class="cal-dow">金</div><div class="cal-dow">土</div>
       </div>
       <div id="calendar" class="cal-grid"></div>
-      <div class="muted" style="margin-top:8px;font-size:12px">●＝保存済みのテキストがある日。クリックでその日を開きます。</div>
+      <div class="muted" style="margin-top:8px;font-size:12px">●＝保存済みテキストがある日。クリックで「その日の予定」を閲覧・編集できます。</div>
     </div>
-  </aside>
+  </div>
+</section>
 
-  <!-- 下：インポート/エクスポート -->
-  <section class="card" style="grid-column:1/-1">
-    <div class="head">
-      <div class="row grow"><span class="pill">インポート / エクスポート</span></div>
-      <div class="row">
-        <button id="exportBtn">エクスポート（JSON）</button>
-        <label for="importFile" style="border:1px solid var(--line); padding:8px 10px; border-radius:8px; cursor:pointer">インポート（JSON）</label>
-        <input id="importFile" type="file" accept="application/json" class="hidden" />
-      </div>
-    </div>
-    <div class="body">
-      <div class="muted" style="font-size:12px">
-        エクスポート：あなたの全日付の予定をJSONで保存します。<br>
-        インポート：同形式JSONで、該当日付に上書き保存します（あなたのデータにのみ反映）。
-      </div>
-    </div>
-  </section>
-</main>
+<!-- ===== カレンダー用モーダル ===== -->
+<div id="modalRoot" class="hidden"></div>
 
-<!-- ===== Firebase SDK v10.12.2（ご提示版に合わせています） ===== -->
+<!-- ===== Firebase SDK v10.12.2（ご提示の方式） ===== -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
   import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
   import { getFirestore, doc, setDoc, getDoc, getDocs, collection, writeBatch } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-  // === ここは「参考ページ」と同じ設定をそのまま採用（必要なら差し替え） ===
+  // === あなたの設定（ご提示のものをそのまま使用） ===
   const firebaseConfig = {
     apiKey: "AIzaSyDuNluIfeulzr_hCr7bHtnCxE1cBneB4kM",
     authDomain: "masu-memo.firebaseapp.com",
@@ -122,75 +137,96 @@
     messagingSenderId: "1065347011702",
     appId: "1:1065347011702:web:e417d565f28d000da83b57"
   };
-
   const app = initializeApp(firebaseConfig);
   const auth = getAuth();
   const db = getFirestore();
   const provider = new GoogleAuthProvider();
 
-  // ===== DOM参照 =====
-  const appRoot = document.getElementById('app');
+  // ===== DOM =====
   const userInfo = document.getElementById('user-info');
-  const signInBtn = document.getElementById('signInBtn');
-  const signOutBtn = document.getElementById('signOutBtn');
+  const tabRegister = document.getElementById('tab-register');
+  const tabCalendar = document.getElementById('tab-calendar');
+  const registerView = document.getElementById('registerView');
+  const calendarView = document.getElementById('calendarView');
+  const modalRoot = document.getElementById('modalRoot');
 
+  // 登録ビュー要素
   const datePicker = document.getElementById('datePicker');
+  const presetSel = document.getElementById('preset');
+  const insertPresetBtn = document.getElementById('insertPresetBtn');
   const todayBtn = document.getElementById('todayBtn');
   const scheduleText = document.getElementById('scheduleText');
-  const saveBtn = document.getElementById('saveBtn');
   const updatedAtEl = document.getElementById('updatedAt');
+  const saveBtn = document.getElementById('saveBtn');
 
+  // カレンダービュー要素
   const prevMonthBtn = document.getElementById('prevMonthBtn');
   const nextMonthBtn = document.getElementById('nextMonthBtn');
+  const backToRegister = document.getElementById('backToRegister');
   const monthLabel = document.getElementById('monthLabel');
   const calGrid = document.getElementById('calendar');
 
-  const exportBtn = document.getElementById('exportBtn');
-  const importFile = document.getElementById('importFile');
-
   // ===== Utils =====
-  const TZ = 'Asia/Tokyo';
   const pad2 = n => String(n).padStart(2,'0');
-  const toDateKey = d => `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`; // YYYY-MM-DD
+  const toDateKey = d => `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;
   const fromDateInput = v => { const [y,m,d] = v.split('-').map(Number); return new Date(y, m-1, d); };
-  const today = () => { const n = new Date(); return new Date(n.getFullYear(), n.getMonth(), n.getDate()); };
-  const toHuman = dt => dt.toLocaleString('ja-JP', { timeZone: TZ, dateStyle:'medium', timeStyle:'short' });
+  const today = () => { const n=new Date(); return new Date(n.getFullYear(), n.getMonth(), n.getDate()); };
+  const toHuman = dt => dt.toLocaleString('ja-JP', { dateStyle:'medium', timeStyle:'short' });
 
-  // 選択中
+  // 登録テンプレ
+  const PRESET = {
+    tired: `18:00 帰宅＆休憩
+18:30 軽めの夕食
+19:00 お風呂
+20:00 リラックス（テレビ・YouTubeなど）
+21:30 就寝準備
+22:00 就寝`,
+    energetic: `18:00 帰宅
+18:30 夕食
+19:00 趣味の時間（制作・勉強）
+20:30 軽い運動（ジョグ/筋トレ）
+21:00 お風呂
+22:30 就寝`,
+    holiday: `08:00 起床
+09:00 おでかけ / 趣味
+12:00 昼食
+13:00 自由時間（映画・買い物）
+18:00 夕食
+19:00 お風呂
+22:00 就寝`,
+    blank: ``
+  };
+
+  // 画面状態
   let currentDate = today();
   let currentMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+  function setDatePicker(date){ datePicker.value = `${date.getFullYear()}-${pad2(date.getMonth()+1)}-${pad2(date.getDate())}`; }
 
-  // ===== 認証（ご提示形式を踏襲） =====
-  async function signInWithGoogle(){
-    try { await signInWithPopup(auth, provider); }
-    catch(e){ console.error("Googleログインエラー:", e); alert("Googleログインに失敗しました: " + e.message); }
-  }
-  async function signOutUser(){ try{ await signOut(auth); } catch(e){ console.error("ログアウトエラー:", e); } }
-
-  // グローバル公開（参考ページ互換）
-  window.signInWithGoogle = signInWithGoogle;
+  // ===== 認証 =====
+  async function signInWithGoogle(){ try{ await signInWithPopup(auth, provider); } catch(e){ alert('Googleログインに失敗しました: '+e.message); } }
+  async function signOutUser(){ try{ await signOut(auth); } catch(e){ console.error(e);} }
+  window.signInWithGoogle = signInWithGoogle; // 参考互換
   window.signOutUser = signOutUser;
 
-  onAuthStateChanged(auth, async user => {
+  onAuthStateChanged(auth, async user=>{
     if(user){
       userInfo.innerHTML = `こんにちは、${user.displayName || user.email} さん <button onclick="signOutUser()">ログアウト</button>`;
-      appRoot.classList.remove('hidden');
-      signInBtn.classList.add('hidden');   // 参考ボタン（予備）
-      signOutBtn.classList.add('hidden');  // 参考ボタン（予備）
-      // 初期表示
+      // 初期表示は「登録ビューのみ」
+      showRegister();
+      currentDate = today();
+      currentMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
       setDatePicker(currentDate);
       await refreshEditor(user.uid);
-      await buildCalendar(user.uid);
+      // カレンダーはタブ切替時に描画
     }else{
       userInfo.innerHTML = `<button onclick="signInWithGoogle()">Googleでログイン</button>`;
-      appRoot.classList.add('hidden');
-      signInBtn.classList.add('hidden');   // 参考ボタン（予備）
-      signOutBtn.classList.add('hidden');  // 参考ボタン（予備）
+      // 非ログイン時は両ビュー隠してOK
+      registerView.classList.add('hidden');
+      calendarView.classList.add('hidden');
     }
   });
 
   // ===== Firestore I/O =====
-  // ドキュメント：users/{uid}/schedules/{YYYY-MM-DD} => { text: string, updatedAt: Timestamp }
   async function loadSchedule(uid, dateKey){
     const ref = doc(db, 'users', uid, 'schedules', dateKey);
     const snap = await getDoc(ref);
@@ -198,53 +234,81 @@
       const d = snap.data();
       return { text: d.text || '', updatedAt: d.updatedAt?.toDate?.() || null };
     }
-    return { text: '', updatedAt: null };
+    return { text:'', updatedAt:null };
   }
   async function saveSchedule(uid, dateKey, text){
     const ref = doc(db, 'users', uid, 'schedules', dateKey);
-    await setDoc(ref, { text, updatedAt: new Date() }, { merge:true });
+    await setDoc(ref, { text, updatedAt:new Date() }, { merge:true });
   }
-  // 当月の保存有無を確認（簡易：全件取得→月でローカルフィルタ）
-  async function listSchedulesForMonth(uid, year, monthIndex){
+  async function listSchedulesForMonth(uid, y, mIdx){
+    // 簡易実装：全件取得→月でローカルフィルタ
     const colRef = collection(db, 'users', uid, 'schedules');
-    const all = await getDocs(colRef);
+    const snaps = await getDocs(colRef);
     const set = new Set();
-    const monthStart = new Date(year, monthIndex, 1);
-    const monthEnd   = new Date(year, monthIndex+1, 1);
-    all.forEach(s=>{
+    const start = new Date(y, mIdx, 1);
+    const end   = new Date(y, mIdx+1, 1);
+    snaps.forEach(s=>{
       const id = s.id; // YYYY-MM-DD
       const m = id.match(/^(\d{4})-(\d{2})-(\d{2})$/);
       if(!m) return;
       const d = new Date(+m[1], +m[2]-1, +m[3]);
-      if(d >= monthStart && d < monthEnd){
-        if((s.data()?.text || '').trim() !== '') set.add(id);
+      if(d>=start && d<end){
+        const txt = (s.data()?.text || '').trim();
+        if(txt) set.add(id);
       }
     });
     return set;
   }
 
-  // ===== 画面制御 =====
-  function setDatePicker(date){
-    datePicker.value = `${date.getFullYear()}-${pad2(date.getMonth()+1)}-${pad2(date.getDate())}`;
-  }
-
+  // ===== 登録ビュー：動作 =====
   async function refreshEditor(uid){
-    const key = toDateKey(currentDate);
-    const { text, updatedAt } = await loadSchedule(uid, key);
+    const { text, updatedAt } = await loadSchedule(uid, toDateKey(currentDate));
+    // 初回表示時はプリセットをすぐ挿入せず、「空の場合に限り」現在選択のプリセットを差し込みやすく
     scheduleText.value = text || '';
     updatedAtEl.textContent = updatedAt ? `保存日時: ${toHuman(updatedAt)}` : '保存日時: —';
   }
 
+  insertPresetBtn.addEventListener('click', ()=>{
+    const p = PRESET[presetSel.value] ?? '';
+    // 既存テキストがある場合は追記、無ければ置き換え
+    if(scheduleText.value.trim()){
+      scheduleText.value = (scheduleText.value + '\n\n' + p).trim();
+    }else{
+      scheduleText.value = p;
+    }
+  });
+
+  datePicker.addEventListener('change', async ()=>{
+    currentDate = fromDateInput(datePicker.value);
+    const u = auth.currentUser; if(u) await refreshEditor(u.uid);
+  });
+
+  todayBtn.addEventListener('click', async ()=>{
+    currentDate = today();
+    setDatePicker(currentDate);
+    const u = auth.currentUser; if(u) await refreshEditor(u.uid);
+  });
+
+  saveBtn.addEventListener('click', async ()=>{
+    const u = auth.currentUser; if(!u) return alert('ログインしてください');
+    saveBtn.disabled = true;
+    try{
+      await saveSchedule(u.uid, toDateKey(currentDate), scheduleText.value.trim());
+      await refreshEditor(u.uid);
+    }catch(e){ alert('保存に失敗しました: '+e.message); }
+    finally{ saveBtn.disabled = false; }
+  });
+
+  // ===== カレンダービュー：描画 =====
   async function buildCalendar(uid){
     const y = currentMonth.getFullYear();
-    const m = currentMonth.getMonth(); // 0-based
+    const m = currentMonth.getMonth();
     monthLabel.textContent = `${y}年 ${m+1}月`;
     calGrid.innerHTML = '';
 
     const firstDay = new Date(y, m, 1).getDay();
     const daysInMonth = new Date(y, m+1, 0).getDate();
     const prevMonthDays = new Date(y, m, 0).getDate();
-
     const savedSet = await listSchedulesForMonth(uid, y, m);
     const totalCells = 42;
 
@@ -275,111 +339,107 @@
       }
       head.appendChild(num); head.appendChild(mark);
 
-      const openBtn = document.createElement('button');
-      openBtn.textContent = '開く';
-      openBtn.addEventListener('click', async ()=>{
-        currentDate = cellDate;
-        setDatePicker(currentDate);
-        const u = auth.currentUser; if(u){ await refreshEditor(u.uid); }
-        currentMonth = new Date(cellDate.getFullYear(), cellDate.getMonth(), 1);
-        if(u){ await buildCalendar(u.uid); }
-        window.scrollTo({ top:0, behavior:'smooth' });
-      });
+      const open = document.createElement('button');
+      open.className = 'open';
+      open.textContent = '開く';
+      open.addEventListener('click', ()=> openDayModal(cellDate));
 
       cell.appendChild(head);
-      cell.appendChild(openBtn);
+      cell.appendChild(open);
       calGrid.appendChild(cell);
     }
   }
 
-  // ===== イベント =====
-  datePicker.addEventListener('change', async ()=>{
-    currentDate = fromDateInput(datePicker.value);
-    currentMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
-    const u = auth.currentUser; if(u){ await refreshEditor(u.uid); await buildCalendar(u.uid); }
-  });
+  // モーダルで予定表示/編集
+  async function openDayModal(dateObj){
+    const u = auth.currentUser; if(!u) return alert('ログインしてください');
+    const key = toDateKey(dateObj);
+    const { text, updatedAt } = await loadSchedule(u.uid, key);
 
-  todayBtn.addEventListener('click', async ()=>{
-    currentDate = today();
-    setDatePicker(currentDate);
-    currentMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
-    const u = auth.currentUser; if(u){ await refreshEditor(u.uid); await buildCalendar(u.uid); }
-  });
+    modalRoot.innerHTML = `
+      <div class="modal-backdrop" role="dialog" aria-modal="true">
+        <div class="modal">
+          <div class="head">
+            <div class="row grow">
+              <strong>${key} の予定</strong>
+            </div>
+            <div class="row">
+              <span class="muted">${updatedAt ? '保存日時: '+toHuman(updatedAt) : '保存日時: —'}</span>
+            </div>
+          </div>
+          <div class="body">
+            <textarea id="modalText" class="textarea" style="min-height:260px" placeholder="この日の予定を入力">${text || ''}</textarea>
+          </div>
+          <div class="footer">
+            <button id="modalPresetTired">疲れている</button>
+            <button id="modalPresetEnergetic">元気</button>
+            <button id="modalPresetHoliday">休日</button>
+            <div style="flex:1"></div>
+            <button id="modalSave" class="primary">保存</button>
+            <button id="modalClose">閉じる</button>
+          </div>
+        </div>
+      </div>
+    `;
+    modalRoot.classList.remove('hidden');
+
+    const modalText = document.getElementById('modalText');
+    document.getElementById('modalPresetTired').onclick = ()=> modalText.value = (modalText.value.trim()? modalText.value+'\n\n':'') + PRESET.tired;
+    document.getElementById('modalPresetEnergetic').onclick = ()=> modalText.value = (modalText.value.trim()? modalText.value+'\n\n':'') + PRESET.energetic;
+    document.getElementById('modalPresetHoliday').onclick = ()=> modalText.value = (modalText.value.trim()? modalText.value+'\n\n':'') + PRESET.holiday;
+
+    document.getElementById('modalClose').onclick = ()=> { modalRoot.classList.add('hidden'); modalRoot.innerHTML=''; };
+
+    document.getElementById('modalSave').onclick = async ()=>{
+      try{
+        await saveSchedule(u.uid, key, modalText.value.trim());
+        // もし登録ビューが同じ日付なら同期
+        if(toDateKey(currentDate) === key){
+          await refreshEditor(u.uid);
+        }
+        await buildCalendar(u.uid);
+        document.getElementById('modalClose').click();
+      }catch(e){ alert('保存に失敗しました: '+e.message); }
+    };
+  }
+
+  // ===== タブ切り替え =====
+  function showRegister(){
+    tabRegister.classList.add('active');
+    tabCalendar.classList.remove('active');
+    registerView.classList.remove('hidden');
+    calendarView.classList.add('hidden');
+  }
+  async function showCalendar(){
+    const u = auth.currentUser; if(!u) return alert('ログインしてください');
+    tabRegister.classList.remove('active');
+    tabCalendar.classList.add('active');
+    registerView.classList.add('hidden');
+    calendarView.classList.remove('hidden');
+    await buildCalendar(u.uid);
+  }
+
+  tabRegister.addEventListener('click', showRegister);
+  tabCalendar.addEventListener('click', showCalendar);
+  backToRegister.addEventListener('click', showRegister);
 
   prevMonthBtn.addEventListener('click', async ()=>{
+    const u = auth.currentUser; if(!u) return;
     currentMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth()-1, 1);
-    const u = auth.currentUser; if(u){ await buildCalendar(u.uid); }
+    await buildCalendar(u.uid);
   });
-
   nextMonthBtn.addEventListener('click', async ()=>{
+    const u = auth.currentUser; if(!u) return;
     currentMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth()+1, 1);
-    const u = auth.currentUser; if(u){ await buildCalendar(u.uid); }
+    await buildCalendar(u.uid);
   });
 
-  saveBtn.addEventListener('click', async ()=>{
-    const u = auth.currentUser; if(!u) return alert('ログインしてください');
-    saveBtn.disabled = true;
-    try{
-      await saveSchedule(u.uid, toDateKey(currentDate), scheduleText.value.trim());
-      await refreshEditor(u.uid);
-      await buildCalendar(u.uid);
-    }catch(e){ alert('保存に失敗しました: ' + e.message); }
-    finally{ saveBtn.disabled = false; }
-  });
-
-  exportBtn.addEventListener('click', async ()=>{
-    const u = auth.currentUser; if(!u) return alert('ログインしてください');
-    const colRef = collection(db, 'users', u.uid, 'schedules');
-    const snaps = await getDocs(colRef);
-    const out = {};
-    snaps.forEach(s=>{
-      const d = s.data();
-      out[s.id] = { text: d.text || '', updatedAt: d.updatedAt?.toDate?.()?.toISOString?.() || null };
-    });
-    const blob = new Blob([JSON.stringify(out, null, 2)], {type:'application/json'});
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'schedules_export.json';
-    a.click();
-    URL.revokeObjectURL(a.href);
-  });
-
-  importFile.addEventListener('change', async (e)=>{
-    const u = auth.currentUser; if(!u) return alert('ログインしてください');
-    const f = e.target.files?.[0]; if(!f) return;
-    try{
-      const text = await f.text();
-      const json = JSON.parse(text);
-      const batch = writeBatch(db);
-      const keys = Object.keys(json);
-      if(keys.length === 0) return alert('インポート対象がありません');
-
-      keys.forEach(k=>{
-        if(!/^\d{4}-\d{2}-\d{2}$/.test(k)) return;
-        const ref = doc(db, 'users', u.uid, 'schedules', k);
-        batch.set(ref, { text: String(json[k]?.text || ''), updatedAt: new Date() }, { merge:true });
-      });
-      await batch.commit();
-      await refreshEditor(u.uid);
-      await buildCalendar(u.uid);
-      alert('インポートしました');
-    }catch(err){
-      console.error(err);
-      alert('インポートに失敗しました: ' + err.message);
-    }finally{
-      importFile.value = '';
-    }
-  });
-
-  // 予備（参考ボタン用）
-  document.getElementById('signInBtn').addEventListener('click', signInWithGoogle);
-  document.getElementById('signOutBtn').addEventListener('click', signOutUser);
-
-  // 初期
+  // 初期：ログイン前でも登録ビュー骨組みは用意し、ログイン後に自動ロード
+  currentDate = today();
   setDatePicker(currentDate);
 </script>
 
-<!-- Firestore ルール（例）：本番前に必ず設定してください
+<!-- Firestore ルール（例）
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
